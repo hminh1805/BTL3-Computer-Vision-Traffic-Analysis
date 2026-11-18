@@ -1,4 +1,4 @@
-# BTL 3 – Computer Vision: Phân tích cảnh giao thông (hướng A)
+# BTL 3 – Computer Vision: Phân tích cảnh giao thông
 
 Hệ thống nhận **video đường giao thông từ camera cố định** và cho ra:
 1. **Làn đường** (Canny + Hough hoặc LSD),
@@ -193,10 +193,3 @@ Khoá bắt đầu bằng `_` trong JSON được coi là ghi chú; khoá sai t�
 | C | Detection + tracking + tốc độ (`detection`, `tracking`, `speed_estimation`) |
 | D | Trực quan, đánh giá, demo, báo cáo (`visualization`, `evaluation`, `pipeline`) |
 
-## 11. Việc còn lại cho nhóm (code chưa làm thay được)
-
-1. **Tìm/quay video thật** và hiệu chỉnh BEV – nên thử ít nhất 2 video khác nhau.
-2. Chạy YOLO vs trừ nền, Hough vs LSD **trên video thật** và điền số liệu thật vào báo cáo.
-3. Để có sai số tốc độ trên video thật: tự đo vài xe (ví dụ đếm thời gian xe đi qua 2 vạch có khoảng cách biết trước) rồi so với `*_tracks.csv`.
-4. Đẩy code lên repository public (đề bắt buộc) – nhớ thêm `.gitignore` cho `data/*.mp4`, `output/`, `*.pt`.
-5. Viết báo cáo PDF.
