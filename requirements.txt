@@ -1,0 +1,10 @@
+numpy>=1.24
+opencv-python>=4.8
+# Phat hien doi tuong bang YOLO (tuy chon, chi can khi detection.method = "yolo")
+ultralytics>=8.0
+
+# Giao dien web (app.py)
+streamlit>=1.40
+pandas
+# Chuyen video ket qua sang H.264 de phat trong trinh duyet (tuy chon)
+imageio-ffmpeg

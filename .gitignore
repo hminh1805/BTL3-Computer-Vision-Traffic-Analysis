@@ -1,0 +1,21 @@
+# Python cache & môi trường ảo
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Dữ liệu video nặng, file trọng số model & kết quả sinh ra
+data/*.mp4
+data/*.avi
+data/*.mov
+data/*.mkv
+output/
+*.pt
+
+# Cấu hình IDE / hệ điều hành
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

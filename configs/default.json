@@ -1,0 +1,25 @@
+{
+  "_note": "Cau hinh mac dinh cho video that. BAT BUOC chinh bev.src_points / road_width_m / road_length_m bang tools/calibrate_bev.py cho dung camera cua ban.",
+  "preprocess": { "max_width": 960, "denoise": true, "clahe": true },
+  "lane": {
+    "enabled": true,
+    "method": "hough",
+    "roi": [[0.02, 1.0], [0.40, 0.55], [0.60, 0.55], [0.98, 1.0]]
+  },
+  "bev": {
+    "mode": "manual",
+    "src_points": [[0.42, 0.62], [0.58, 0.62], [0.90, 1.0], [0.10, 1.0]],
+    "road_width_m": 7.0,
+    "road_length_m": 40.0,
+    "pixels_per_meter": 15.0
+  },
+  "detection": {
+    "method": "yolo",
+    "model": "yolov8n.pt",
+    "confidence": 0.35,
+    "classes": [2, 3, 5, 7],
+    "road_only": true
+  },
+  "tracking": { "iou_threshold": 0.2, "max_age": 15, "min_hits": 3 },
+  "speed": { "window_sec": 1.0, "smooth_alpha": 0.3 }
+}

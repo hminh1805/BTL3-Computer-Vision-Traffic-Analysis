@@ -1,0 +1,20 @@
+{
+  "_note": "Cau hinh cho video gia lap data/synthetic.mp4 (tao bang tools/make_synthetic_video.py). Detector dung 'motion' de chay khong can YOLO.",
+  "lane": {
+    "method": "hough",
+    "roi": [[0.10, 1.0], [0.40, 0.34], [0.60, 0.34], [0.90, 1.0]],
+    "min_line_length": 30
+  },
+  "bev": {
+    "mode": "manual",
+    "src_points": [[0.4167, 0.3333], [0.5833, 0.3333], [0.8646, 1.0], [0.1354, 1.0]],
+    "road_width_m": 7.0,
+    "road_length_m": 40.0,
+    "pixels_per_meter": 15.0
+  },
+  "detection": {
+    "method": "motion",
+    "road_margin_px": 20,
+    "motion_min_area": 150
+  }
+}

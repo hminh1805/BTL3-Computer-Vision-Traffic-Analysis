@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; }
+  canvas { display: block; touch-action: none; cursor: crosshair; border-radius: 6px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Component Streamlit tự viết (không cần build): kéo 4 điểm trực tiếp trên ảnh.
+// Giao thức: gửi componentReady -> nhận streamlit:render (args) -> gửi setComponentValue khi thả chuột.
+const NAMES = ["TL", "TR", "BR", "BL"];
+const COLORS = ["#ff5252", "#ffb300", "#00e676", "#40c4ff"];
+const R = 11;                      // bán kính điểm kéo (px)
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let img = new Image(), imgSrc = null, imgReady = false;
+let pts = [[0.4, 0.3], [0.6, 0.3], [0.9, 0.95], [0.1, 0.95]];   // toạ độ theo tỉ lệ 0..1
+let drag = -1, hover = -1;
+
+function send(type, data) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
+}
+
+function layout() {
+  const ratio = imgReady ? img.naturalHeight / img.naturalWidth : 0.5625;
+  // ảnh dọc (portrait) rất cao -> giới hạn chiều cao hiển thị ~720px, thu hẹp bề ngang tương ứng
+  const w = Math.round(Math.max(Math.min(document.body.clientWidth, 720 / ratio), 200));
+  const h = Math.round(w * ratio);
+  canvas.style.width = w + "px";
+  canvas.style.margin = "0 auto";
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.height = h + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  send("streamlit:setFrameHeight", { height: h + 4 });
+  draw();
+}
+
+function draw() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+  if (imgReady) ctx.drawImage(img, 0, 0, w, h);
+  const P = pts.map(p => [p[0] * w, p[1] * h]);
+  ctx.beginPath();
+  P.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,200,0,0.18)";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#ffc400";
+  ctx.stroke();
+  P.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], i === drag || i === hover ? R + 3 : R, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS[i];
+    ctx.globalAlpha = 0.9;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    ctx.font = "bold 13px sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.strokeText(NAMES[i], p[0] + R + 4, p[1] - R);
+    ctx.fillText(NAMES[i], p[0] + R + 4, p[1] - R);
+  });
+}
+
+function pos(e) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX - r.left), (e.clientY - r.top)];
+}
+
+function nearest(x, y) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  let best = -1, bd = 1e9;
+  pts.forEach((p, i) => {
+    const d = Math.hypot(p[0] * w - x, p[1] * h - y);
+    if (d < bd) { bd = d; best = i; }
+  });
+  return bd <= R + 14 ? best : -1;
+}
+
+canvas.addEventListener("pointerdown", e => {
+  const [x, y] = pos(e);
+  drag = nearest(x, y);
+  if (drag >= 0) { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = "grabbing"; }
+  draw();
+});
+canvas.addEventListener("pointermove", e => {
+  const [x, y] = pos(e);
+  if (drag >= 0) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    pts[drag] = [Math.min(Math.max(x / w, 0), 1), Math.min(Math.max(y / h, 0), 1)];
+  } else {
+    hover = nearest(x, y);
+    canvas.style.cursor = hover >= 0 ? "grab" : "crosshair";
+  }
+  draw();
+});
+function release(e) {
+  if (drag < 0) return;
+  drag = -1;
+  canvas.style.cursor = "crosshair";
+  draw();
+  // rev = mốc thời gian: Python chỉ nhận giá trị mới hơn lần đã nhận (tránh ghi đè lại giá trị cũ)
+  const value = { points: pts.map(p => [Math.round(p[0] * 10000) / 10000, Math.round(p[1] * 10000) / 10000]), rev: Date.now() };
+  if (!sendViaBridge(value)) send("streamlit:setComponentValue", { value: value, dataType: "json" });
+}
+
+// Kênh trả giá trị chính: iframe cùng origin với trang Streamlit nên ghi thẳng vào ô text ẩn
+// (st.text_input có aria-label = bridgeLabel) rồi giả lập Enter để Streamlit nhận giá trị.
+// Cách này không phụ thuộc vào giao thức setComponentValue (đang bị lỗi "unregistered ComponentInstance"
+// trên một số bản Streamlit / trình duyệt).
+let bridgeLabel = "quad_bridge";
+function sendViaBridge(value) {
+  try {
+    const doc = window.parent.document;
+    const el = doc.querySelector('input[aria-label="' + bridgeLabel + '"]');
+    if (!el) return false;
+    const setter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, "value").set;
+    el.focus();                                   // bắt buộc: Streamlit chỉ nhận giá trị khi ô đang được focus
+    setter.call(el, JSON.stringify(value));
+    el.dispatchEvent(new window.parent.Event("input", { bubbles: true }));
+    el.dispatchEvent(new window.parent.KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+    el.blur();
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+canvas.addEventListener("pointerup", release);
+canvas.addEventListener("pointercancel", release);
+window.addEventListener("resize", layout);
+
+window.addEventListener("message", e => {
+  if (!e.data || e.data.type !== "streamlit:render") return;
+  const a = e.data.args || {};
+  if (a.bridge_label) bridgeLabel = a.bridge_label;
+  if (drag < 0 && Array.isArray(a.points) && a.points.length === 4) pts = a.points.map(p => [p[0], p[1]]);
+  if (a.image && a.image !== imgSrc) {
+    imgSrc = a.image;
+    imgReady = false;
+    const im = new Image();
+    im.onload = () => { img = im; imgReady = true; layout(); };
+    im.src = a.image;
+  } else {
+    layout();
+  }
+});
+
+send("streamlit:componentReady", { apiVersion: 1 });
+layout();
+</script>
+</body>
+</html>
